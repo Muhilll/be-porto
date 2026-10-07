@@ -12,7 +12,7 @@ export type RolePermissionResponseDto = RolePermissionEntity & {
   menu: {
     id: number;
     name: string;
-    path: string;
+    path: string | null;
     permission_path: string | null;
     icon: string | null;
     parent_id: number | null;

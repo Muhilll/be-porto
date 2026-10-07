@@ -1,3 +1,4 @@
+import { getUserOpenApiDocument } from "../app/user/route/user.route";
 import { getMenuOpenApiDocument } from "../app/menu/route/menu.route";
 import { getRoleOpenApiDocument } from "../app/role/route/role.route";
 import { getRolePermissionOpenApiDocument } from "../app/role_permission/route/role-permission.route";

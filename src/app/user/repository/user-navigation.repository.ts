@@ -9,7 +9,7 @@ import {
 type NavigationMenuRow = {
   id: number;
   name: string;
-  path: string;
+  path: string | null;
   icon: string | null;
   is_visible: boolean | null;
   parent_id: number | null;

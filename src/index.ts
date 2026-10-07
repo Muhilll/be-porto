@@ -56,9 +56,7 @@ app.get('/openapi.json', (c) => {
 });
 
 app.get('/docs', apiReference({
-  spec: {
-    url: '/openapi.json',
-  },
+  url: '/openapi.json',
 }));
 
 // Serve uploaded static files
