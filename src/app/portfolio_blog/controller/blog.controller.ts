@@ -15,7 +15,8 @@ function parseBlog(item: any) {
 
 function calculateReadTime(content: string): string {
   if (!content) return "1 min read";
-  const words = content.trim().split(/\s+/).length;
+  const clean = content.replace(/<[^>]*>/g, " ").trim();
+  const words = clean.split(/\s+/).filter(Boolean).length;
   const minutes = Math.max(1, Math.ceil(words / 200));
   return `${minutes} min read`;
 }
@@ -59,27 +60,16 @@ export class BlogController {
 
   static async getBySlug(c: Context) {
     try {
-      const param = c.req.param("slug");
-
-      let record = null;
-      // Check if param is numeric ID
-      if (/^\d+$/.test(param)) {
-        const [foundById] = await db
-          .select()
-          .from(blogs)
-          .where(eq(blogs.id, Number(param)))
-          .limit(1);
-        record = foundById;
+      const slugOrId = c.req.param("slug");
+      if (!slugOrId) {
+        return c.json({ success: false, message: "Slug or ID is required" }, 400);
       }
 
-      if (!record) {
-        const [foundBySlug] = await db
-          .select()
-          .from(blogs)
-          .where(eq(blogs.slug, param))
-          .limit(1);
-        record = foundBySlug;
-      }
+      const isNumeric = /^\d+$/.test(slugOrId);
+
+      const [record] = isNumeric
+        ? await db.select().from(blogs).where(eq(blogs.id, Number(slugOrId))).limit(1)
+        : await db.select().from(blogs).where(eq(blogs.slug, String(slugOrId))).limit(1);
 
       if (!record) {
         return c.json({ success: false, message: "Article not found" }, 404);
