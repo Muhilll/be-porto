@@ -23,28 +23,39 @@ export async function uploadMedia(
 ): Promise<UploadResult> {
   const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
 
-  // If Cloudinary is configured
+  // If Cloudinary is configured, try Cloudinary first
   if (process.env.CLOUDINARY_URL) {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder,
-          resource_type: "auto",
-        },
-        (error, result?: UploadApiResponse) => {
-          if (error || !result) {
-            return reject(error || new Error("Cloudinary upload failed"));
+    try {
+      const result = await new Promise<UploadResult>((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder,
+            resource_type: "auto",
+          },
+          (error, result?: UploadApiResponse) => {
+            if (error || !result) {
+              return reject(error || new Error("Cloudinary upload failed"));
+            }
+            resolve({
+              url: result.secure_url,
+              publicId: result.public_id,
+              format: result.format,
+            });
           }
-          resolve({
-            url: result.secure_url,
-            publicId: result.public_id,
-            format: result.format,
-          });
-        }
+        );
+        uploadStream.end(buffer);
+      });
+
+      return result;
+    } catch (cloudinaryError) {
+      console.warn(
+        "Cloudinary upload failed, automatically falling back to local file storage:",
+        cloudinaryError
       );
-      uploadStream.end(buffer);
-    });
+      // Fallback proceeds below to local ./public/uploads
+    }
   }
+
 
   // Fallback: Local upload to ./public/uploads
   const publicDir = path.resolve(process.cwd(), "public", "uploads");
