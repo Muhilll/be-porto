@@ -55,8 +55,8 @@ export class ProfileController {
       const statsStr = body.stats ? JSON.stringify(body.stats) : null;
 
       const profilePayload = {
-        name: body.name || "Zail Yan Zali",
-        short_name: body.short_name || "Zail",
+        name: body.name || "Muhammad Ilham",
+        short_name: body.short_name || "Muhil",
         role: body.role || "Full-Stack Software Engineer",
         roles_list: rolesListStr,
         tagline: body.tagline || "",
