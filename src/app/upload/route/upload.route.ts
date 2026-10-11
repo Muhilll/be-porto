@@ -28,8 +28,14 @@ const uploadAuthMiddleware = async (c: Context, next: Next) => {
     }
   }
 
-  // 2. Cek App Token
-  if (appToken && expectedAppToken && appToken === expectedAppToken) {
+  // 2. Cek App Token (mendukung token porto dan token fallback jika ada)
+  const validTokens = [
+    expectedAppToken,
+    "app-token-for-personal-porto-muhil",
+    "app-token-for-amar-cafe-moncongloe",
+  ].filter(Boolean);
+
+  if (appToken && validTokens.includes(appToken)) {
     return await next();
   }
 

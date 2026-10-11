@@ -57,6 +57,13 @@ export async function uploadMedia(
   }
 
 
+  // If running on Vercel / serverless and Cloudinary failed or is missing, do not attempt local fs write
+  if (process.env.VERCEL) {
+    throw new Error(
+      "Gagal mengunggah file ke Cloudinary. Pastikan CLOUDINARY_URL sudah terpasang dengan benar di Environment Variables Vercel."
+    );
+  }
+
   // Fallback: Local upload to ./public/uploads
   const publicDir = path.resolve(process.cwd(), "public", "uploads");
   if (!fs.existsSync(publicDir)) {

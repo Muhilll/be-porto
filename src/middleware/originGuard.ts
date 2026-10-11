@@ -2,13 +2,54 @@ import { Context, Next } from "hono";
 import { cors } from "hono/cors";
 
 function normalizeOrigin(origin: string) {
-  return origin.trim().replace(/\/+$/, "");
+  return origin.trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "").toLowerCase();
 }
 
-const allowedOrigins = (process.env.ALLOWED_APP_URL ?? "")
-  .split(",")
-  .map((origin) => normalizeOrigin(origin))
-  .filter(Boolean);
+function getAllowedOrigins(): string[] {
+  const envVal = process.env.ALLOWED_APP_URL ?? "";
+  return envVal
+    .split(",")
+    .map((origin) => normalizeOrigin(origin))
+    .filter(Boolean);
+}
+
+export function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return false;
+  const normalized = normalizeOrigin(origin);
+  const allowed = getAllowedOrigins();
+
+  // If ALLOWED_APP_URL is empty or includes wildcard '*', allow all
+  if (allowed.length === 0 || allowed.includes("*")) {
+    return true;
+  }
+
+  // Automatically allow vercel.app domains and localhost for seamless deployment
+  try {
+    const hostname = new URL(normalized).hostname;
+    if (hostname.endsWith(".vercel.app") || hostname === "localhost" || hostname === "127.0.0.1") {
+      return true;
+    }
+  } catch {
+    // ignore parsing errors
+  }
+
+  return allowed.some((item) => {
+    if (item === "*") return true;
+
+    // Wildcard subdomain matching (e.g. *.vercel.app)
+    if (item.startsWith("*.")) {
+      const domainSuffix = item.slice(2);
+      try {
+        const host = new URL(normalized).hostname;
+        return host === domainSuffix || host.endsWith("." + domainSuffix);
+      } catch {
+        return normalized.endsWith(domainSuffix);
+      }
+    }
+
+    return normalized === item;
+  });
+}
 
 function getRequestOrigin(c: Context) {
   const origin = c.req.header("origin");
@@ -39,21 +80,14 @@ function getServerOrigin(c: Context) {
 }
 
 export const originGuard = async (c: Context, next: Next) => {
-  if (allowedOrigins.length === 0) {
-    await next();
-    return;
-  }
-
   const requestOrigin = getRequestOrigin(c);
-  const normalizedRequestOrigin = requestOrigin
-    ? normalizeOrigin(requestOrigin)
-    : undefined;
-  const serverOrigin = getServerOrigin(c);
-
-  if (!normalizedRequestOrigin) {
+  if (!requestOrigin) {
     await next();
     return;
   }
+
+  const normalizedRequestOrigin = normalizeOrigin(requestOrigin);
+  const serverOrigin = getServerOrigin(c);
 
   // Allow same-origin requests, including docs pages that fetch local assets/specs.
   if (serverOrigin && normalizedRequestOrigin === serverOrigin) {
@@ -61,7 +95,7 @@ export const originGuard = async (c: Context, next: Next) => {
     return;
   }
 
-  if (!allowedOrigins.includes(normalizedRequestOrigin)) {
+  if (!isOriginAllowed(normalizedRequestOrigin)) {
     return c.json(
       {
         success: false,
@@ -80,15 +114,13 @@ export const corsMiddleware = cors({
       return "";
     }
 
-    const normalizedOrigin = normalizeOrigin(origin);
-
-    if (allowedOrigins.length === 0) {
-      return normalizedOrigin;
+    if (isOriginAllowed(origin)) {
+      return origin;
     }
 
-    return allowedOrigins.includes(normalizedOrigin) ? normalizedOrigin : "";
+    return "";
   },
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-App-Token'],
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "X-App-Token"],
   credentials: true,
 });
